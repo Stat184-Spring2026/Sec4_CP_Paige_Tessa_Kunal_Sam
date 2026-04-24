@@ -1,10 +1,14 @@
 # Project Title
 
-Write a 1-2 sentences that quickly and clearly convey what your repo is for.
+Write a 1-2 sentences that quickly and clearly convey what your repo is for. 
+
+This repository is used to host our group's STAT 184 course project and manage version control. Our project involves exploring changes in housing prices over the last 30 years.
 
 ## Overview
 
 Expand on those introductory sentences with a brief but informative description of your project's purpose and goals. This section should help visitors decide whether they should dig deeper into your repo/project.
+
+We want to explore how housing prices have changed over the past 30 years in relation to metrics like income and cost of living to understand how American consumers have been affected. We plan on using housing datasets for the last 30 years, along with cost of living and income related data from the same time period. Key metrics we are considering include median home price, median rent, price-to-rent ratio, median household income, nominal and real income growth, CPI and price to income ratio.
 
 ### Interesting Insight (Optional)
 
