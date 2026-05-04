@@ -96,3 +96,36 @@ ggplot(price_income_data, aes(x = year, y = price_to_income_ratio)) +
     plot.caption     = element_text(size = 8,  color = "gray40", hjust = 0),
     panel.grid.minor = element_blank()
   )
+
+# Primary Author: [Your Name] | Reviewed by: [Teammate Name]
+
+library(kableExtra)
+
+price_income_data |>
+  mutate(
+    era = case_when(
+      year < 2000              ~ "Pre-2000",
+      year >= 2000 & year < 2008 ~ "2000–2007 (Pre-Crisis)",
+      year >= 2008 & year <= 2012 ~ "2008–2012 (Post-Crisis)",
+      year >= 2013 & year <= 2019 ~ "2013–2019 (Recovery)",
+      year >= 2020             ~ "2020–2024 (COVID Era)"
+    )
+  ) |>
+  group_by(era) |>
+  summarize(
+    avg_ratio = mean(price_to_income_ratio),
+    min_ratio = min(price_to_income_ratio),
+    max_ratio = max(price_to_income_ratio),
+    .groups = "drop"
+  ) |>
+  kable(
+    col.names = c("Era", "Mean Ratio", "Min Ratio", "Max Ratio"),
+    digits    = 2,
+    caption   = "Summary of U.S. Price-to-Income Ratio by Historical Era, 1995–2024",
+    booktabs  = TRUE
+  ) |>
+  kable_styling(
+    latex_options = c("striped", "hold_position"),
+    full_width    = FALSE
+  )
+
