@@ -1,39 +1,72 @@
-# STAT 184 – Data Analysis & Visualization of Inflation in Housing
+# U.S. Housing Affordability (1993–2024)
+## STAT 184 · Section 4 Course Project
+**Authors:** Paige · Tessa · Kunal · Sam
 
-This repository is used to host our group's STAT 184 course project and manage version control. Our project involves exploring changes in housing prices over the last 30 years. The goal of this project is to perform data wrangling, analysis, and visualization using R. The project demonstrates core concepts from the course, including data cleaning, exploratory data analysis (EDA), and the creation of meaningful visualizations.
-
-STAT 184 emphasizes skills such as working with tidy data, using R for analysis, and applying version control with GitHub, properties our repository and final project wants to emphasize.
-
-Objectives
-    -- Import and clean real-world datasets
-    -- Perform exploratory data analysis (EDA)
-    -- Generate visualizations using ggplot2
-    -- Interpret trends and patterns in the data
-    -- Communicate findings clearly
+---
 
 ## Overview
+This project analyzes how U.S. housing costs have evolved over 31 years relative
+to household incomes and general inflation, using four datasets downloaded directly
+from **FRED** (Federal Reserve Economic Data) as CSV files.
 
-Expand on those introductory sentences with a brief but informative description of your project's purpose and goals. This section should help visitors decide whether they should dig deeper into your repo/project.
+## Repository Structure
+```
+.
+├── analysis.R                    # Wrangles CSVs → 8 PNG plots
+├── report.Rmd                    # Full R Markdown report (knit → report.html)
+├── report.html                   # Compiled HTML report (open in browser)
+├── data/
+│   ├── MSPUS.csv                 # Median home sales price (quarterly)
+│   ├── CUUR0000SEHA.csv          # CPI rent index (monthly)
+│   ├── MEHOINUSA646N.csv         # Median household income (annual)
+│   ├── CPIAUCSL.csv              # CPI-U all items (monthly)
+│   └── housing_metrics_master.csv  # Generated master dataset
+└── plots/
+    ├── 01_median_home_price.png
+    ├── 02_median_rent.png
+    ├── 03_price_to_rent.png
+    ├── 04_income_nominal_real.png
+    ├── 05_income_growth_yoy.png
+    ├── 06_cpi_inflation.png
+    ├── 07_price_to_income.png
+    └── 08_all_indexed.png
+```
 
-We want to explore how housing prices have changed over the past 30 years in relation to metrics like income and cost of living to understand how American consumers have been affected. We plan on using housing datasets for the last 30 years, along with cost of living and income related data from the same time period. Key metrics we are considering include median home price, median rent, price-to-rent ratio, median household income, nominal and real income growth, CPI and price to income ratio.
+## Data Sources (FRED)
+| File | Series | Description |
+|------|--------|-------------|
+| `MSPUS.csv` | MSPUS | Median Sales Price of Houses Sold |
+| `CUUR0000SEHA.csv` | CUUR0000SEHA | CPI: Rent of Primary Residence |
+| `MEHOINUSA646N.csv` | MEHOINUSA646N | Median Household Income |
+| `CPIAUCSL.csv` | CPIAUCSL | CPI-U All Items |
 
-### Insights (Optional)
+Downloaded from: `https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIES_ID>`
 
-This is optional but highly recommended. You'll include one interesting insight from your project as part of the README. This insight is most effective when you include a visual. Keep in mind that this visual must be included as an image file (e.g., JPG, PNG, etc.). You can export plots created with `{ggplot2}` by using the function `ggsave`.
+## How to Run
 
-## Data Sources and Acknowledgements
+### Install packages (once)
+```r
+install.packages(c("readr","dplyr","tidyr","lubridate",
+                   "ggplot2","scales","patchwork","rmarkdown","knitr"))
+```
 
-Our data comes from FRED (Federal Reserve Economic Data), links to each
+### Generate plots
+```r
+source("analysis.R")   # writes plots/ and data/housing_metrics_master.csv
+```
 
-## Current Plan
+### Compile full report
+```r
+rmarkdown::render("report.Rmd", output_file = "report.html")
+# or: click Knit in RStudio
+```
 
-Provide some information about what you intend to do with the project. You can additionally refer the visitor to your detailed plan document.
-
-## Repo Structure
-
-Use this section to explain the structure of your repo. This should help visitors quickly figure out where they should look to find certain elements. Further, you can use this space to highlight and briefly explain important/key files in the repo.
-
-
-## Authors
-
-Give information about who are the authors of the project and how people can get in touch if they have questions.
+## Key Findings
+| Metric | 1993 | 2024 | Change |
+|--------|------|------|--------|
+| Median home price | $151K | $477K | +217% |
+| Estimated monthly rent | $455 | $1,876 | +312% |
+| Nominal household income | $31,241 | $80,610 | +158% |
+| Real household income (2024$) | $67,836 | $80,610 | +19% |
+| Price-to-income ratio | 4.83× | 5.92× | — |
+| Peak inflation | — | 7.96% (2022) | — |
