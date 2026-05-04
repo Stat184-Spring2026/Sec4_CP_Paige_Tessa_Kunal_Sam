@@ -1,0 +1,159 @@
+---
+title: "30-Year Analysis of Housing Price Trends in the United States"
+author: "Paige, Tessa, Kunal, Sam"
+format: pdf
+execute:
+  echo: false
+---
+
+## U.S. Real Housing Price Index
+
+### Code for Price Index
+
+```{r}
+library(readr)
+library(ggplot2)
+
+QUSR628BIS <- read_csv("QUSR628BIS.csv", show_col_types = FALSE)
+
+year_data <- aggregate(
+  QUSR628BIS$QUSR628BIS,
+  by = list(year = format(QUSR628BIS$observation_date, "%Y")),
+  FUN = mean
+)
+
+colnames(year_data) <- c("year", "Real_Housing_Index")
+
+year_data$year <- as.numeric(year_data$year)
+year_data <- subset(year_data, year >= 1995 & year <= 2025)
+
+print(colnames(year_data))
+
+print(
+  ggplot(year_data, aes(x = year, y = Real_Housing_Index)) +
+    geom_line(color = "dodgerblue") +
+    geom_point(color = "dodgerblue") +
+    labs(
+      x = "Year",
+      y = "Real Housing Price Index",
+      title = "U.S. Real Housing Price Index (1995–2025)"
+    ) +
+    scale_x_continuous(breaks = seq(1995, 2025, by = 5)) +
+    theme_minimal()
+)
+
+year_data
+
+if (!require(knitr)) install.packages("knitr")
+library(knitr)
+
+year_data$Real_Housing_Index <- round(year_data$Real_Housing_Index, 1)
+
+knitr::kable(
+  year_data,
+  col.names = c("Year", "Real Housing Price Index"),
+  caption = "Average Annual Real Housing Price Index (1995–2025)"
+)
+```
+## Narrative Text
+
+### Introduction
+
+Housing prices are an important indicator of economic conditions in the United States. Changes in housing prices can reflect periods of economic growth, financial instability, and recovery. This analysis focuses on the U.S. Real Housing Price Index from 1995 to 2025 to better understand long-term trends and major shifts in the housing market.
+
+### Data
+
+The dataset used in this analysis comes from the Federal Reserve Economic Data (FRED) database, specifically the Real Housing Price Index (QUSR628BIS). This dataset provides monthly values that measure changes in housing prices adjusted for inflation. Using real values allows for a more accurate comparison over time because it removes the effects of inflation.
+
+### Data Preparation
+
+To prepare the data for analysis, the monthly housing price values were grouped by year and averaged to create a single value per year. The year was extracted from the date variable and converted into a numeric format for easier plotting. The dataset was then filtered to include only the years from 1995 through 2025. Finally, the housing price index values were rounded to one decimal place to improve readability in the data table.
+
+### Visualization
+
+The visualization is a line graph that shows the trend of the Real Housing Price Index over time. The graph reveals a steady increase in housing prices from the late 1990s through the mid-2000s, followed by a sharp decline during the 2008 financial crisis. After reaching a low point around 2011, housing prices gradually recovered and continued to rise, reaching their highest levels in the early 2020s. This pattern highlights the impact of major economic events on the housing market.
+
+### Data Table
+
+The data table presents the average annual Real Housing Price Index values from 1995 to 2025. By summarizing the data into yearly averages, the table provides a clear and organized view of how housing prices changed over time. It allows for easy comparison between years and supports the trends observed in the visualization.
+
+### Conclusion
+
+Overall, the Real Housing Price Index shows significant growth over the past three decades, with a major disruption during the 2008 financial crisis. The recovery period that followed demonstrates the resilience of the housing market, as prices eventually surpassed previous highs. This analysis emphasizes how economic events can strongly influence housing prices and highlights the importance of examining long-term trends when evaluating the housing market.
+
+
+## U.S. Inflation Rates
+
+### Code for Inflation
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+
+inflation <- read_csv("FPCPITOTLZGUSA.csv", show_col_types = FALSE)
+colnames(inflation)
+head(inflation)
+
+inflation <- inflation %>%
+  rename(
+    year = observation_date,
+    Inflation = FPCPITOTLZGUSA
+  )
+
+inflation$year <- as.numeric(format(as.Date(inflation$year), "%Y"))
+
+inflation <- inflation %>%
+  filter(year >= 1995 & year <= 2025)
+print(head(inflation))
+
+ggplot(inflation, aes(x = year, y = Inflation)) +
+  geom_line(color = "dodgerblue") +
+  geom_point(color = "dodgerblue") +
+  geom_hline(
+    yintercept = mean(inflation$Inflation, na.rm = TRUE),
+    color = "red",
+    linetype = "dashed",
+    size = 1
+  ) +
+  labs(
+    x = "Year",
+    y = "Inflation Rate (%)",
+    title = "U.S. Inflation Rate (1995–2025)"
+  ) +
+  scale_x_continuous(breaks = seq(1995, 2025, by = 5)) +
+  theme_minimal()
+
+inflation$Inflation <- round(inflation$Inflation, 2)
+
+kable(
+  inflation,
+  col.names = c("Year", "Inflation Rate (%)"),
+  caption = "Annual U.S. Inflation Rate (1995–2025)"
+)
+```
+
+
+## Narrative Text
+### Introduction
+Inflation measures how much prices for goods and services increase over time.It is an important indicator of the overall health of the economy because it affects purchasing power and cost of living. In this analysis, I examine how the U.S. inflation rate has changed from 1995 to 2025 to better understand long-term trends and major fluctuations.
+
+### Data
+The dataset used in this analysis comes from a CSV file containing U.S. inflation rates. I first load the necessary libraries for data manipulation and visualization, including `readr`, `ggplot2`, `dplyr`, and `knitr`. Then, I import the dataset and preview its structure to understand the variables included.
+
+### Data Preparation
+To make the dataset easier to work with, I rename the columns to more readable names. The date variable is converted into a numeric year format so it can be used properly in the analysis. I then filtered the dataset to only include data from 1995 to 2025, which keeps the focus on recent trends while still showing long-term patterns.
+
+### Visualization
+The line graph below shows how the U.S. inflation rate changes over time. Each point represents the inflation rate for a given year, and the line helps show the overall trend. A red dashed line is included to represent the average inflation rate across all years. This helps compare individual years to the overall average and makes it easier to see when inflation was unusually high or low.
+
+### Table
+The table below displays the exact inflation values for each year from 1995 to 2025. The values are rounded to two decimal places for readability. This provides a clear numerical reference to support the trends shown in the graph.
+
+### Conclusion
+Overall, the inflation rate shows periods of both stability and fluctuation over time. While many years stay close to the average, there are noticeable spikes that likely correspond to major economic events. This analysis helps highlight how inflation has changed over time and provides a better understanding of economic trends in the United States.
+
+## U.S. Price to Income
+
+### Code for Price to Income
