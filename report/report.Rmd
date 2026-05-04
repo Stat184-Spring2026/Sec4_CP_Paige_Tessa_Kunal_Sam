@@ -1,0 +1,486 @@
+---
+title: "U.S. Housing Affordability, 1993–2024"
+subtitle: "STAT 184 · Section 4 Course Project"
+author: "Paige · Tessa · Kunal · Sam"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    fig_width: 9
+    fig_height: 5
+    df_print: kable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center"
+)
+```
+
+---
+
+## 1 · Introduction
+
+Over the past three decades, American households have faced a widening gap between what homes cost and what they earn. This report quantifies that gap using four publicly available datasets downloaded directly from the **Federal Reserve Economic Data (FRED)** system operated by the Federal Reserve Bank of St. Louis.
+
+We examine eight metrics:
+
+| # | Metric | FRED Series ID | Frequency |
+|---|--------|---------------|-----------|
+| 1 | Median home sales price | `MSPUS` | Quarterly |
+| 2 | Estimated median monthly rent | `CUUR0000SEHA` | Monthly |
+| 3 | Price-to-rent ratio | Derived | Annual |
+| 4 & 5 | Median household income — nominal & real | `MEHOINUSA646N` | Annual |
+| 5 | Nominal & real income growth (YoY %) | Derived | Annual |
+| 6 | CPI-U all items & annual inflation rate | `CPIAUCSL` | Monthly |
+| 7 | Price-to-income ratio | Derived | Annual |
+| 8 | All metrics indexed to year 2000 | Derived | Annual |
+
+**Data files** (`data/`) were downloaded as CSV directly from:
+`https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIES_ID>`
+
+No API calls or web scraping are performed at analysis time — the CSVs are read from disk.
+
+---
+
+## 2 · Setup
+
+```{r libraries}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(patchwork)
+library(knitr)
+```
+
+```{r theme-palette}
+theme_housing <- function(base = 13) {
+  theme_minimal(base_size = base) +
+    theme(
+      plot.title       = element_text(face = "bold", size = base + 1,
+                                      margin = margin(b = 5)),
+      plot.subtitle    = element_text(color = "grey40", size = base - 1),
+      plot.caption     = element_text(color = "grey55", size = 8.5,
+                                      hjust = 0, margin = margin(t = 8)),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "grey92"),
+      axis.title       = element_text(size = base - 1),
+      legend.position  = "bottom",
+      legend.title     = element_blank()
+    )
+}
+
+CAP  <- paste0(
+  "Sources: FRED — MSPUS, CUUR0000SEHA, MEHOINUSA646N, CPIAUCSL",
+  "\nSTAT 184 Section 4 · Paige, Tessa, Kunal, Sam"
+)
+XBRK <- seq(1993, 2024, by = 3)
+
+BLUE  <- "#1B4F8A"; RUST  <- "#C1440E"; GREEN <- "#1F7A4B"
+PURP  <- "#6B3FA0"; GOLD  <- "#B8860B"; TEAL  <- "#1A7A7A"
+```
+
+---
+
+## 3 · Data Ingestion & Wrangling
+
+```{r load-data}
+# ── Median home price (quarterly) ────────────────────────────────────────────
+home_q <- read_csv("data/MSPUS.csv", show_col_types = FALSE) %>%
+  rename(date = observation_date, home_price = MSPUS) %>%
+  mutate(date = ymd(date), year = year(date))
+
+home_annual <- home_q %>%
+  group_by(year) %>%
+  summarise(median_home_price = mean(home_price, na.rm = TRUE), .groups = "drop")
+
+# ── CPI rent component (monthly index, 1982-84 = 100) ────────────────────────
+# Calibrated to U.S. Census Bureau 2000 median gross rent: $602/month
+rent_raw <- read_csv("data/CUUR0000SEHA.csv", show_col_types = FALSE) %>%
+  rename(date = observation_date, rent_idx = CUUR0000SEHA) %>%
+  mutate(date = ymd(date), year = year(date))
+
+rent_annual <- rent_raw %>%
+  group_by(year) %>%
+  summarise(rent_idx = mean(rent_idx, na.rm = TRUE), .groups = "drop")
+
+base_idx_2000 <- rent_annual %>% filter(year == 2000) %>% pull(rent_idx)
+
+rent_annual <- rent_annual %>%
+  mutate(median_rent = rent_idx / base_idx_2000 * 602) %>%
+  select(year, median_rent)
+
+# ── Median household income (nominal, annual) ─────────────────────────────────
+income_raw <- read_csv("data/MEHOINUSA646N.csv", show_col_types = FALSE) %>%
+  rename(date = observation_date, median_hh_income_nom = MEHOINUSA646N) %>%
+  mutate(year = year(ymd(date))) %>%
+  select(year, median_hh_income_nom)
+
+# ── CPI-U all items (monthly → annual average) ────────────────────────────────
+cpi_raw <- read_csv("data/CPIAUCSL.csv", show_col_types = FALSE) %>%
+  rename(date = observation_date, cpi = CPIAUCSL) %>%
+  mutate(date = ymd(date), year = year(date))
+
+cpi_annual <- cpi_raw %>%
+  group_by(year) %>%
+  summarise(cpi = mean(cpi, na.rm = TRUE), .groups = "drop")
+
+# ── Master data frame with derived metrics ────────────────────────────────────
+cpi_2024 <- cpi_annual %>% filter(year == 2024) %>% pull(cpi)
+
+housing <- home_annual %>%
+  left_join(rent_annual,  by = "year") %>%
+  left_join(income_raw,   by = "year") %>%
+  left_join(cpi_annual,   by = "year") %>%
+  filter(year >= 1993, year <= 2024) %>%
+  arrange(year) %>%
+  mutate(
+    # Inflation-adjusted income (2024 dollars)
+    median_hh_income_real = median_hh_income_nom * (cpi_2024 / cpi),
+    # Price-to-rent ratio (annual price ÷ annualised monthly rent)
+    price_to_rent         = median_home_price / (median_rent * 12),
+    # Price-to-income ratio
+    price_to_income       = median_home_price / median_hh_income_nom,
+    # Year-over-year growth rates
+    income_growth_nom     = (median_hh_income_nom  / lag(median_hh_income_nom)  - 1) * 100,
+    income_growth_real    = (median_hh_income_real / lag(median_hh_income_real) - 1) * 100,
+    cpi_yoy               = (cpi / lag(cpi) - 1) * 100
+  )
+```
+
+### 3.1 · Data Summary
+
+```{r summary-table}
+housing %>%
+  filter(year %in% c(1993, 2000, 2006, 2012, 2019, 2022, 2024)) %>%
+  transmute(
+    Year                  = year,
+    `Median Home Price`   = dollar(round(median_home_price, -2)),
+    `Est. Monthly Rent`   = dollar(round(median_rent)),
+    `HH Income (Nominal)` = dollar(median_hh_income_nom),
+    `HH Income (Real)`    = dollar(round(median_hh_income_real)),
+    `Price/Rent`          = round(price_to_rent, 1),
+    `Price/Income`        = round(price_to_income, 2),
+    `CPI`                 = round(cpi, 1),
+    `Inflation %`         = ifelse(is.na(cpi_yoy), "—", paste0(round(cpi_yoy, 1), "%"))
+  ) %>%
+  kable(caption = "Key housing metrics at selected benchmark years",
+        align   = c("c","r","r","r","r","r","r","r","r"))
+```
+
+---
+
+## 4 · Results
+
+### Figure 1 · Median Home Sales Price
+
+```{r fig1-home-price, fig.cap="Median U.S. home sales price in nominal dollars. Shaded bands mark the 2008 housing crisis and the 2020–2022 pandemic surge."}
+ggplot(housing, aes(x = year, y = median_home_price)) +
+  annotate("rect", xmin = 2007.5, xmax = 2011.5,
+           ymin = -Inf, ymax = Inf, fill = "grey70", alpha = 0.15) +
+  annotate("text", x = 2009.5, y = 510000, label = "Housing\ncrisis",
+           color = "grey45", size = 3, hjust = 0.5) +
+  annotate("rect", xmin = 2019.8, xmax = 2022.8,
+           ymin = -Inf, ymax = Inf, fill = "#FFF3CD", alpha = 0.4) +
+  annotate("text", x = 2021.3, y = 510000, label = "Pandemic\nboom",
+           color = "#856404", size = 3, hjust = 0.5) +
+  geom_area(fill = BLUE, alpha = 0.12) +
+  geom_line(color = BLUE, linewidth = 1.1) +
+  geom_point(color = BLUE, size = 2, shape = 21, fill = "white", stroke = 1.2) +
+  scale_x_continuous(breaks = XBRK) +
+  scale_y_continuous(labels = label_dollar(scale = 1e-3, suffix = "K"),
+                     limits = c(0, 560000)) +
+  labs(title    = "Median U.S. Home Sales Price (1993–2024)",
+       subtitle = "Nominal dollars · FRED: MSPUS (quarterly, annual average shown)",
+       x = "Year", y = "Median Sales Price", caption = CAP) +
+  theme_housing()
+```
+
+From **\$151K in 1993** to a peak of **\$486K in 2022**, median home prices rose **217%** in nominal terms over the study period — falling slightly to **\$477K by 2024** after the Federal Reserve's rate-hiking cycle. Two inflection points stand out: the 2006–2011 bust (prices fell ~35% from peak to trough) and the 2020–2022 pandemic surge, which was faster and larger than the mid-2000s bubble in percentage terms.
+
+---
+
+### Figure 2 · Estimated Median Monthly Rent
+
+```{r fig2-rent, fig.cap="Estimated median U.S. gross monthly rent. The CPI rent index is calibrated to the U.S. Census Bureau 2000 median of $602/month."}
+ggplot(housing, aes(x = year, y = median_rent)) +
+  geom_area(fill = RUST, alpha = 0.12) +
+  geom_line(color = RUST, linewidth = 1.1) +
+  geom_point(color = RUST, size = 2, shape = 21, fill = "white", stroke = 1.2) +
+  scale_x_continuous(breaks = XBRK) +
+  scale_y_continuous(labels = label_dollar(accuracy = 1)) +
+  labs(title    = "Estimated Median U.S. Monthly Rent (1993–2024)",
+       subtitle = "CPI rent-of-primary-residence index (CUUR0000SEHA) · anchored to Census 2000 median ($602/mo)",
+       x = "Year", y = "Estimated Monthly Rent", caption = CAP) +
+  theme_housing()
+```
+
+Unlike home prices, rent growth has been **monotonically upward** — no bust, no correction. From an estimated **\$455/month in 1993** to **\$1,876/month in 2024**, rents rose **312%** nominally, outpacing both general CPI (+117%) and nominal income growth (+158%) over the same period. The steepest acceleration occurred after 2019, driven by supply shortages and post-pandemic demand shifts.
+
+> **Methodology note:** A direct long-run median rent series is not available on FRED. We use the BLS CPI rent-of-primary-residence component (`CUUR0000SEHA`) as an index, anchored to the U.S. Census Bureau's 2000 American Housing Survey median gross rent of \$602/month. This gives an internally consistent trend but will diverge from spot-market rents in high-cost metros.
+
+---
+
+### Figure 3 · Price-to-Rent Ratio
+
+```{r fig3-ptr, fig.cap="The price-to-rent ratio compares the annual cost of owning versus the annual cost of renting. Conventional thresholds: below 15 favors buying; above 20 favors renting."}
+ptr_zones <- data.frame(
+  ymin = c(0, 15, 20), ymax = c(15, 20, 50),
+  fill = c("#d4edda", "#fff3cd", "#f8d7da")
+)
+
+ggplot() +
+  geom_rect(data = ptr_zones,
+            aes(xmin = -Inf, xmax = Inf, ymin = ymin, ymax = ymax),
+            fill = ptr_zones$fill, alpha = 0.45) +
+  geom_line(data = housing, aes(x = year, y = price_to_rent),
+            color = GOLD, linewidth = 1.3) +
+  geom_point(data = housing, aes(x = year, y = price_to_rent),
+             color = GOLD, size = 2.3) +
+  annotate("text", x = 1994, y =  7.5, hjust = 0, color = "#155724",
+           size = 3.1, label = "Buy favored  (ratio < 15)") +
+  annotate("text", x = 1994, y = 17.3, hjust = 0, color = "#856404",
+           size = 3.1, label = "Neutral  (15–20)") +
+  annotate("text", x = 1994, y = 22.8, hjust = 0, color = "#721c24",
+           size = 3.1, label = "Rent favored  (ratio > 20)") +
+  scale_x_continuous(breaks = XBRK) +
+  scale_y_continuous(breaks = seq(0, 50, by = 5),
+                     limits = c(0, 50)) +
+  labs(title    = "Price-to-Rent Ratio (1993–2024)",
+       subtitle = "Annual median home price ÷ (estimated monthly rent × 12)",
+       x = "Year", y = "Price-to-Rent Ratio", caption = CAP) +
+  theme_housing()
+```
+
+The price-to-rent ratio has remained **entirely in "rent-favored" territory** throughout the entire 1993–2024 window, ranging from **20.2 to 39.9**. It peaked in the mid-2000s bubble (~40×), fell to ~22× post-crisis, recovered during the 2010s, then spiked again during the 2020–2022 pandemic surge before easing to ~21× by 2024. By this metric, renting has been the financially rational near-term choice for a typical U.S. household for over three decades — though the calculus varies significantly by local market and holding period.
+
+---
+
+### Figure 4 · Median Household Income: Nominal vs. Real
+
+```{r fig4-income, fig.cap="Nominal income in current dollars vs. real income adjusted to 2024 dollars using CPI-U."}
+income_long <- housing %>%
+  select(year, median_hh_income_nom, median_hh_income_real) %>%
+  pivot_longer(-year, names_to = "type", values_to = "income") %>%
+  mutate(type = recode(type,
+    median_hh_income_nom  = "Nominal",
+    median_hh_income_real = "Real (2024 $)"))
+
+ggplot(income_long, aes(x = year, y = income, color = type, linetype = type)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  scale_color_manual(values    = c("Nominal" = GREEN, "Real (2024 $)" = "#0A4F2E")) +
+  scale_linetype_manual(values = c("Nominal" = "solid", "Real (2024 $)" = "dashed")) +
+  scale_x_continuous(breaks = XBRK) +
+  scale_y_continuous(labels = label_dollar(scale = 1e-3, suffix = "K")) +
+  labs(title    = "Median U.S. Household Income: Nominal vs. Real (1993–2024)",
+       subtitle = "Real income deflated to 2024 dollars using annual average CPI-U (CPIAUCSL)",
+       x = "Year", y = "Median Household Income", caption = CAP) +
+  theme_housing()
+```
+
+Nominal income grew from **\$31,241 in 1993** to **\$80,610 in 2024** (+158%). But after adjusting for inflation, **real income grew only 19%** over the same 31 years — from \$67,836 to \$80,610 in 2024 dollars. Real incomes peaked around 2019 (\$84,297), then declined sharply during the 2021–2022 inflation surge before recovering. The gap between the solid (nominal) and dashed (real) lines widens over time, reflecting the cumulative erosion of purchasing power.
+
+---
+
+### Figure 5 · Nominal & Real Income Growth (YoY %)
+
+```{r fig5-income-growth, fig.cap="Year-over-year percent change in nominal vs. real (inflation-adjusted) median household income."}
+growth_long <- housing %>%
+  filter(!is.na(income_growth_nom)) %>%
+  select(year, income_growth_nom, income_growth_real) %>%
+  pivot_longer(-year, names_to = "type", values_to = "pct") %>%
+  mutate(type = recode(type,
+    income_growth_nom  = "Nominal",
+    income_growth_real = "Real (2024 $)"))
+
+ggplot(growth_long, aes(x = year, y = pct, fill = type)) +
+  geom_col(position = "dodge", width = 0.75, alpha = 0.85) +
+  geom_hline(yintercept = 0, linewidth = 0.5, color = "grey30") +
+  scale_fill_manual(values = c("Nominal" = GREEN, "Real (2024 $)" = "#A8D5B5")) +
+  scale_x_continuous(breaks = XBRK) +
+  scale_y_continuous(labels = label_percent(scale = 1, accuracy = 0.1)) +
+  labs(title    = "Year-over-Year Household Income Growth: Nominal vs. Real (1994–2024)",
+       subtitle = "Negative real growth bars signal a net loss of purchasing power",
+       x = "Year", y = "YoY Growth (%)", caption = CAP) +
+  theme_housing()
+```
+
+Nominal income peaked at **+8.7% YoY in 2023** (a pandemic catch-up effect) but this was largely offset by concurrent inflation. Real income turned **sharply negative in 2021–2022** as the CPI surge (+8% peak) outpaced wage growth — the worst real income decline since the early 1980s. Years 2001, 2008, and 2020 also show real income contraction aligned with recessions.
+
+---
+
+### Figure 6 · CPI Level & Annual Inflation Rate
+
+```{r fig6-cpi, fig.height=8, fig.cap="Top: CPI-U all-items index (1982-84=100). Bottom: Annual inflation rate with the Fed's 2% target shown."}
+p6a <- ggplot(housing, aes(x = year, y = cpi)) +
+  geom_area(fill = PURP, alpha = 0.12) +
+  geom_line(color = PURP, linewidth = 1.1) +
+  scale_x_continuous(breaks = XBRK) +
+  labs(title    = "CPI-U All Items Index (1993–2024)",
+       subtitle = "Annual average · FRED: CPIAUCSL (base: 1982–84 = 100)",
+       x = NULL, y = "CPI Index") +
+  theme_housing() +
+  theme(plot.caption   = element_blank(),
+        axis.text.x    = element_blank(),
+        axis.ticks.x   = element_blank())
+
+p6b <- housing %>%
+  filter(!is.na(cpi_yoy)) %>%
+  ggplot(aes(x = year, y = cpi_yoy, fill = cpi_yoy > 2)) +
+  geom_col(alpha = 0.85) +
+  geom_hline(yintercept = 2, linetype = "dashed",
+             color = "grey40", linewidth = 0.7) +
+  annotate("text", x = 1994.5, y = 2.35, hjust = 0,
+           label = "Fed 2% target", color = "grey40", size = 3) +
+  scale_fill_manual(values = c("TRUE" = PURP, "FALSE" = "#C0392B"),
+                    guide = "none") +
+  scale_x_continuous(breaks = XBRK) +
+  scale_y_continuous(labels = label_percent(scale = 1, accuracy = 0.1)) +
+  labs(title    = NULL,
+       subtitle = "Annual CPI-U inflation rate (%) · purple = above 2% target",
+       x = "Year", y = "Inflation (%)", caption = CAP) +
+  theme_housing()
+
+p6a / p6b + plot_layout(heights = c(1, 1))
+```
+
+The CPI-U index rose from **144.5 in 1993** to **313.7 in 2024** — meaning the same basket of goods costs **117% more** than it did 31 years ago. Inflation remained close to or below the Fed's 2% target from 1997 through 2020, then surged to **7.96% in 2022** — the highest annual rate in the dataset — driven by pandemic-related supply chain disruptions, energy prices, and excess demand. The 2022 spike had a significant compounding effect on real wages and housing affordability.
+
+---
+
+### Figure 7 · Price-to-Income Ratio
+
+```{r fig7-pti, fig.cap="The price-to-income ratio measures housing affordability. A ratio of 3× is the historical U.S. norm; 5× is widely cited as a stress threshold."}
+ggplot(housing, aes(x = year, y = price_to_income)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = 5, ymax = Inf,
+           fill = "#f8d7da", alpha = 0.25) +
+  geom_area(fill = TEAL, alpha = 0.10) +
+  geom_line(color = TEAL, linewidth = 1.3) +
+  geom_point(color = TEAL, size = 2.2) +
+  geom_hline(yintercept = 3, linetype = "dashed",
+             color = "grey45", linewidth = 0.8) +
+  geom_hline(yintercept = 5, linetype = "dotted",
+             color = "#C0392B", linewidth = 0.8) +
+  annotate("text", x = 1994, y = 3.18, hjust = 0, color = "grey40",
+           size = 3, label = "Historical norm (~3×)") +
+  annotate("text", x = 1994, y = 5.2, hjust = 0, color = "#C0392B",
+           size = 3, label = "Affordability stress threshold (~5×)") +
+  scale_x_continuous(breaks = XBRK) +
+  scale_y_continuous(labels = label_number(suffix = "×", accuracy = 0.1),
+                     limits = c(0, 9)) +
+  labs(title    = "Price-to-Income Ratio (1993–2024)",
+       subtitle = "Median home sales price ÷ median household income (nominal)",
+       x = "Year", y = "Price-to-Income Ratio", caption = CAP) +
+  theme_housing()
+```
+
+The price-to-income ratio has **never been at or below the historical 3× norm** in this dataset — it was already at **4.8× in 1993**. It peaked at **7.65× in 2006** during the housing bubble, fell to **4.97× in 2012** post-crisis, then climbed steadily to **6.51× by 2022** before easing slightly to **5.92× in 2024**. The entire 2019–2024 period sits above the affordability stress threshold of 5×, indicating that housing has been severely unaffordable for the median U.S. household for at least six consecutive years.
+
+---
+
+### Figure 8 · All Metrics Indexed to Year 2000
+
+```{r fig8-indexed, fig.height=6, fig.cap="All five metrics set to 100 in the year 2000. Divergence above the baseline reveals relative affordability erosion."}
+idx_df <- housing %>%
+  filter(year >= 2000) %>%
+  mutate(across(
+    c(median_home_price, median_rent,
+      median_hh_income_nom, median_hh_income_real, cpi),
+    ~ . / first(.) * 100
+  )) %>%
+  select(year, median_home_price, median_rent,
+         median_hh_income_nom, median_hh_income_real, cpi) %>%
+  pivot_longer(-year, names_to = "metric", values_to = "idx") %>%
+  mutate(metric = recode(metric,
+    median_home_price     = "Home Price",
+    median_rent           = "Rent",
+    median_hh_income_nom  = "Nominal Income",
+    median_hh_income_real = "Real Income",
+    cpi                   = "CPI"))
+
+palette8 <- c("Home Price"     = BLUE,  "Rent"           = RUST,
+              "Nominal Income" = GREEN, "Real Income"    = "#0A4F2E",
+              "CPI"            = PURP)
+ltype8   <- c("Home Price" = "solid", "Rent"          = "solid",
+              "Nominal Income" = "solid", "Real Income" = "dashed",
+              "CPI"            = "solid")
+
+ggplot(idx_df, aes(x = year, y = idx, color = metric, linetype = metric)) +
+  geom_hline(yintercept = 100, color = "grey70", linetype = "dotted") +
+  geom_line(linewidth = 1.15) +
+  annotate("text", x = 2001, y = 103.5, hjust = 0, color = "grey55",
+           size = 2.9, label = "Baseline = 100 (year 2000)") +
+  scale_color_manual(values = palette8) +
+  scale_linetype_manual(values = ltype8) +
+  scale_x_continuous(breaks = seq(2000, 2024, by = 4)) +
+  scale_y_continuous(breaks = seq(50, 350, by = 50)) +
+  guides(color    = guide_legend(nrow = 2),
+         linetype = guide_legend(nrow = 2)) +
+  labs(title    = "Housing Costs, Income & Inflation — Indexed to Year 2000",
+       subtitle = "All series = 100 in 2000 · wider gap = greater affordability pressure",
+       x = "Year", y = "Index (2000 = 100)", caption = CAP) +
+  theme_housing()
+```
+
+This panel tells the central story of the analysis. From 2000 to 2024:
+
+- **Home prices** rose to index **210** (up 110%)
+- **Rent** rose to index **312** (up 212%)
+- **Nominal income** rose to index **192** (up 92%)
+- **CPI** rose to index **182** (up 82%)
+- **Real income** barely moved — index only **105** (up just 5%)
+
+The gap between home prices and real income has grown from zero in 2000 to **105 index points by 2024**, and the rent-income gap is even wider. Every dollar of real income growth has been consumed many times over by housing cost growth.
+
+---
+
+## 5 · Key Findings
+
+```{r findings-table, echo=FALSE}
+findings <- data.frame(
+  Metric       = c("Median Home Price", "Estimated Rent", "Nominal Income",
+                   "Real Income", "CPI", "Price-to-Rent (2024)",
+                   "Price-to-Income (2024)", "Peak Inflation"),
+  `1993 Value` = c("$151K", "$455/mo", "$31,241", "$67,836 (2024$)",
+                   "144.5", "—", "—", "—"),
+  `2024 Value` = c("$477K", "$1,876/mo", "$80,610", "$80,610 (2024$)",
+                   "313.7", "21.2×", "5.92×", "7.96% (2022)"),
+  `Change`     = c("+217%", "+312%", "+158%", "+19% (real)",
+                   "+117%", "Rent-favored entire period",
+                   "Above 5× stress threshold since 2019",
+                   "Highest in 40 years"),
+  check.names  = FALSE
+)
+kable(findings, caption = "Summary of key findings across all eight metrics")
+```
+
+**Core conclusion:** Median home prices rose 217% and rents rose 312% between 1993 and 2024, while real (inflation-adjusted) household income grew only 19%. The price-to-income ratio has remained above the 5× affordability stress threshold since 2019, and the price-to-rent ratio has been in "rent-favored" territory for the entire study period. The 2021–2022 inflation spike — the worst in four decades — further compressed real purchasing power at exactly the moment housing costs peaked, creating the most severe affordability conditions in the dataset.
+
+---
+
+## 6 · Data Sources
+
+| Series ID | Description | Source | URL |
+|-----------|-------------|--------|-----|
+| `MSPUS` | Median Sales Price of Houses Sold | U.S. Census Bureau / HUD via FRED | [fred.stlouisfed.org/series/MSPUS](https://fred.stlouisfed.org/series/MSPUS) |
+| `CUUR0000SEHA` | CPI: Rent of Primary Residence | U.S. BLS via FRED | [fred.stlouisfed.org/series/CUUR0000SEHA](https://fred.stlouisfed.org/series/CUUR0000SEHA) |
+| `MEHOINUSA646N` | Real Median Household Income | U.S. Census Bureau via FRED | [fred.stlouisfed.org/series/MEHOINUSA646N](https://fred.stlouisfed.org/series/MEHOINUSA646N) |
+| `CPIAUCSL` | CPI-U All Items | U.S. BLS via FRED | [fred.stlouisfed.org/series/CPIAUCSL](https://fred.stlouisfed.org/series/CPIAUCSL) |
+| 2000 Rent Anchor | Median Gross Rent | U.S. Census Bureau, 2000 AHS | [census.gov/housing](https://www.census.gov/housing) |
+
+---
+
+*Report compiled with R `r paste(R.version$major, R.version$minor, sep=".")` · tidyverse · patchwork · scales.*
+*All source data files are included in `data/` for full reproducibility.*
