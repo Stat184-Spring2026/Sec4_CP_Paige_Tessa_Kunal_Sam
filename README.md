@@ -12,9 +12,9 @@ from **FRED** (Federal Reserve Economic Data) as CSV files.
 ## Repository Structure
 ```
 .
-├── analysis.R                    # Wrangles CSVs → 8 PNG plots
-├── report.Rmd                    # Full R Markdown report (knit → report.html)
-├── report.html                   # Compiled HTML report (open in browser)
+├── script
+    ├── ....R                     # Generation of data visualizations
+├── report.qmd                    # Full R Markdown report (knit → report.html)
 ├── data/
 │   ├── MSPUS.csv                 # Median home sales price (quarterly)
 │   ├── CUUR0000SEHA.csv          # CPI rent index (monthly)
@@ -29,7 +29,9 @@ from **FRED** (Federal Reserve Economic Data) as CSV files.
     ├── 05_income_growth_yoy.png
     ├── 06_cpi_inflation.png
     ├── 07_price_to_income.png
-    └── 08_all_indexed.png
+    ├── 08_all_indexed.png
+    └── ...
+
 ```
 
 ## Data Sources (FRED)
@@ -52,7 +54,8 @@ install.packages(c("readr","dplyr","tidyr","lubridate",
 
 ### Generate plots
 ```r
-source("analysis.R")   # writes plots/ and data/housing_metrics_master.csv
+source("/script/analysis.R")   # writes plots/ and data/housing_metrics_master.csv
+source("/script/...")
 ```
 
 ### Compile full report
@@ -70,3 +73,7 @@ rmarkdown::render("report.Rmd", output_file = "report.html")
 | Real household income (2024$) | $67,836 | $80,610 | +19% |
 | Price-to-income ratio | 4.83× | 5.92× | — |
 | Peak inflation | — | 7.96% (2022) | — |
+
+## Authors
+
+All authors are accessible from the GitHub repository's contributors. Their contact links can be found on their profiles.
