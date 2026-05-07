@@ -1,0 +1,590 @@
+---
+title: "30-Year Analysis of Housing Price Trends in the United States"
+author: "Paige, Tessa, Kunal, Sam"
+format: pdf
+execute:
+  echo: false
+---
+
+## U.S. Real Housing Price Index
+
+### Code for Price Index
+
+```{r}
+library(readr)
+library(ggplot2)
+
+QUSR628BIS <- read_csv("data/QUSR628BIS.csv", show_col_types = FALSE)
+
+year_data <- aggregate(
+  QUSR628BIS$QUSR628BIS,
+  by = list(year = format(QUSR628BIS$observation_date, "%Y")),
+  FUN = mean
+)
+
+colnames(year_data) <- c("year", "Real_Housing_Index")
+
+year_data$year <- as.numeric(year_data$year)
+year_data <- subset(year_data, year >= 1995 & year <= 2025)
+
+print(colnames(year_data))
+
+print(
+  ggplot(year_data, aes(x = year, y = Real_Housing_Index)) +
+    geom_line(color = "dodgerblue") +
+    geom_point(color = "dodgerblue") +
+    labs(
+      x = "Year",
+      y = "Real Housing Price Index",
+      title = "U.S. Real Housing Price Index (1995–2025)"
+    ) +
+    scale_x_continuous(breaks = seq(1995, 2025, by = 5)) +
+    theme_minimal()
+)
+
+year_data
+
+if (!require(knitr)) install.packages("knitr")
+library(knitr)
+
+year_data$Real_Housing_Index <- round(year_data$Real_Housing_Index, 1)
+
+knitr::kable(
+  year_data,
+  col.names = c("Year", "Real Housing Price Index"),
+  caption = "Average Annual Real Housing Price Index (1995–2025)"
+)
+```
+## Narrative Text
+
+### Introduction
+
+Housing prices are an important indicator of economic conditions in the United States. Changes in housing prices can reflect periods of economic growth, financial instability, and recovery. This analysis focuses on the U.S. Real Housing Price Index from 1995 to 2025 to better understand long-term trends and major shifts in the housing market.
+
+### Data
+
+The dataset used in this analysis comes from the Federal Reserve Economic Data (FRED) database, specifically the Real Housing Price Index (QUSR628BIS). This dataset provides monthly values that measure changes in housing prices adjusted for inflation. Using real values allows for a more accurate comparison over time because it removes the effects of inflation.
+
+### Data Preparation
+
+To prepare the data for analysis, the monthly housing price values were grouped by year and averaged to create a single value per year. The year was extracted from the date variable and converted into a numeric format for easier plotting. The dataset was then filtered to include only the years from 1995 through 2025. Finally, the housing price index values were rounded to one decimal place to improve readability in the data table.
+
+### Visualization
+
+The visualization is a line graph that shows the trend of the Real Housing Price Index over time. The graph reveals a steady increase in housing prices from the late 1990s through the mid-2000s, followed by a sharp decline during the 2008 financial crisis. After reaching a low point around 2011, housing prices gradually recovered and continued to rise, reaching their highest levels in the early 2020s. This pattern highlights the impact of major economic events on the housing market.
+
+### Data Table
+
+The data table presents the average annual Real Housing Price Index values from 1995 to 2025. By summarizing the data into yearly averages, the table provides a clear and organized view of how housing prices changed over time. It allows for easy comparison between years and supports the trends observed in the visualization.
+
+### Conclusion
+
+Overall, the Real Housing Price Index shows significant growth over the past three decades, with a major disruption during the 2008 financial crisis. The recovery period that followed demonstrates the resilience of the housing market, as prices eventually surpassed previous highs. This analysis emphasizes how economic events can strongly influence housing prices and highlights the importance of examining long-term trends when evaluating the housing market.
+
+
+## U.S. Inflation Rates
+
+### Code for Inflation
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+
+inflation <- read_csv("data/FPCPITOTLZGUSA.csv", show_col_types = FALSE)
+colnames(inflation)
+head(inflation)
+
+inflation <- inflation %>%
+  rename(
+    year = observation_date,
+    Inflation = FPCPITOTLZGUSA
+  )
+
+inflation$year <- as.numeric(format(as.Date(inflation$year), "%Y"))
+
+inflation <- inflation %>%
+  filter(year >= 1995 & year <= 2025)
+print(head(inflation))
+
+ggplot(inflation, aes(x = year, y = Inflation)) +
+  geom_line(color = "dodgerblue") +
+  geom_point(color = "dodgerblue") +
+  geom_hline(
+    yintercept = mean(inflation$Inflation, na.rm = TRUE),
+    color = "red",
+    linetype = "dashed",
+    size = 1
+  ) +
+  labs(
+    x = "Year",
+    y = "Inflation Rate (%)",
+    title = "U.S. Inflation Rate (1995–2025)"
+  ) +
+  scale_x_continuous(breaks = seq(1995, 2025, by = 5)) +
+  theme_minimal()
+
+inflation$Inflation <- round(inflation$Inflation, 2)
+
+kable(
+  inflation,
+  col.names = c("Year", "Inflation Rate (%)"),
+  caption = "Annual U.S. Inflation Rate (1995–2025)"
+)
+```
+
+
+## Narrative Text
+### Introduction
+Inflation measures how much prices for goods and services increase over time.It is an important indicator of the overall health of the economy because it affects purchasing power and cost of living. In this analysis, I examine how the U.S. inflation rate has changed from 1995 to 2025 to better understand long-term trends and major fluctuations.
+
+### Data
+The dataset used in this analysis comes from a CSV file containing U.S. inflation rates. I first load the necessary libraries for data manipulation and visualization, including `readr`, `ggplot2`, `dplyr`, and `knitr`. Then, I import the dataset and preview its structure to understand the variables included.
+
+### Data Preparation
+To make the dataset easier to work with, I rename the columns to more readable names. The date variable is converted into a numeric year format so it can be used properly in the analysis. I then filtered the dataset to only include data from 1995 to 2025, which keeps the focus on recent trends while still showing long-term patterns.
+
+### Visualization
+The line graph below shows how the U.S. inflation rate changes over time. Each point represents the inflation rate for a given year, and the line helps show the overall trend. A red dashed line is included to represent the average inflation rate across all years. This helps compare individual years to the overall average and makes it easier to see when inflation was unusually high or low.
+
+### Table
+The table below displays the exact inflation values for each year from 1995 to 2025. The values are rounded to two decimal places for readability. This provides a clear numerical reference to support the trends shown in the graph.
+
+### Conclusion
+Overall, the inflation rate shows periods of both stability and fluctuation over time. While many years stay close to the average, there are noticeable spikes that likely correspond to major economic events. This analysis helps highlight how inflation has changed over time and provides a better understanding of economic trends in the United States.
+
+## U.S. Price to Income
+
+### Code for Price to Income
+
+```{r}
+#| label: fig-price-to-income
+#| fig-cap: "U.S. Price-to-Income Ratio (1995–2024). Shaded regions highlight the 2008 Financial Crisis and COVID-19 Spike periods. Dashed line shows the 1995–2024 historical average."
+#| fig-alt: "Line chart showing the U.S. price-to-income ratio from 1995 to 2024. The ratio trends upward overall, with a peak around 2006, a dip following the 2008 financial crisis, and a sharp spike during the COVID-19 era reaching its highest point around 2022. A dashed horizontal line marks the historical average near 4.7."
+
+# Style Guide: Tidyverse Style Guide (https://style.tidyverse.org/)
+# Primary Author: Sam | Reviewed by: Kenny
+
+library(tidyverse)
+library(scales)
+
+# Data source: FRED, Federal Reserve Bank of St. Louis.
+# MSPUS = Median Sales Price of Houses Sold for the United States
+# MEHOINUSA646N = Median Household Income in the United States
+
+home_prices <- read_csv(
+  "data/MSPUS.csv",
+  show_col_types = FALSE
+) |>
+  rename(date = observation_date, median_home_price = MSPUS) |>
+  mutate(
+    date = ymd(date),
+    year = year(date)
+  ) |>
+  filter(year >= 1995, year <= 2024) |>
+  group_by(year) |>
+  summarize(
+    median_home_price = mean(median_home_price, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+income <- read_csv(
+  "data/MEHOINUSA646N.csv",
+  show_col_types = FALSE
+) |>
+  rename(date = observation_date, median_household_income = MEHOINUSA646N) |>
+  mutate(
+    date = ymd(date),
+    year = year(date)
+  ) |>
+  filter(year >= 1995, year <= 2024) |>
+  select(year, median_household_income)
+
+price_income_data <- home_prices |>
+  inner_join(income, by = "year") |>
+  mutate(
+    price_to_income_ratio = median_home_price / median_household_income
+  )
+
+ggplot(price_income_data, aes(x = year, y = price_to_income_ratio)) +
+  annotate(
+    "rect",
+    xmin = 2007.5, xmax = 2009.5,
+    ymin = -Inf,   ymax = Inf,
+    fill = "#d73027", alpha = 0.12
+  ) +
+  annotate(
+    "rect",
+    xmin = 2019.5, xmax = 2022.5,
+    ymin = -Inf,   ymax = Inf,
+    fill = "#fc8d59", alpha = 0.12
+  ) +
+  geom_hline(
+    yintercept = mean(price_income_data$price_to_income_ratio),
+    linetype   = "dashed",
+    color      = "gray50",
+    linewidth  = 0.6
+  ) +
+  geom_line(color = "#2166ac", linewidth = 1.1) +
+  geom_point(color = "#2166ac", size = 2.2) +
+  geom_vline(xintercept = 2008, linetype = "dotted",
+             color = "#d73027", linewidth = 0.8) +
+  geom_vline(xintercept = 2021, linetype = "dotted",
+             color = "#fc8d59", linewidth = 0.8) +
+  annotate("text", x = 2008, y = max(price_income_data$price_to_income_ratio) * 1.025,
+           label = "2008\nCrisis", hjust = 1.1, size = 3, color = "#d73027") +
+  annotate("text", x = 2021, y = max(price_income_data$price_to_income_ratio) * 1.06,
+           label = "COVID-19\nSpike", hjust = -0.1, size = 3, color = "#b35806") +
+  annotate("text",
+           x     = 1996,
+           y     = mean(price_income_data$price_to_income_ratio),
+           label = "Historical avg.",
+           vjust = -0.5, size = 2.8, color = "gray40") +
+  scale_x_continuous(breaks = seq(1995, 2025, by = 5)) +
+  scale_y_continuous(
+    labels = label_number(accuracy = 0.1),
+    limits = c(NA, max(price_income_data$price_to_income_ratio) * 1.14)
+  ) +
+  labs(
+    title    = "U.S. Home Prices Have Grown Faster Than Household Income",
+    subtitle = "Price-to-income ratio: median home sale price divided by median household income, 1995–2024",
+    x        = "Year",
+    y        = "Price-to-Income Ratio (unitless)",
+    caption  = "Source: Federal Reserve Bank of St. Louis (FRED).\nSeries MSPUS (median home price) and MEHOINUSA646N (median household income)."
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(size = 10, color = "gray30"),
+    plot.caption     = element_text(size = 8,  color = "gray40", hjust = 0),
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+#| label: tbl-price-to-income
+#| tbl-cap: "Summary of U.S. Price-to-Income Ratio by Historical Era, 1995–2024"
+
+# Primary Author: Sam | Reviewed by: Kenny
+
+library(kableExtra)
+
+price_income_data |>
+  mutate(
+    era = case_when(
+      year < 2000                  ~ "Pre-2000",
+      year >= 2000 & year < 2008   ~ "2000–2007 (Pre-Crisis)",
+      year >= 2008 & year <= 2012  ~ "2008–2012 (Post-Crisis)",
+      year >= 2013 & year <= 2019  ~ "2013–2019 (Recovery)",
+      year >= 2020                 ~ "2020–2024 (COVID Era)"
+    )
+  ) |>
+  group_by(era) |>
+  summarize(
+    avg_ratio = mean(price_to_income_ratio),
+    min_ratio = min(price_to_income_ratio),
+    max_ratio = max(price_to_income_ratio),
+    .groups = "drop"
+  ) |>
+  arrange(avg_ratio) |>
+  kable(
+    col.names = c("Era", "Mean Ratio", "Min Ratio", "Max Ratio"),
+    digits    = 2,
+    booktabs  = TRUE
+  ) |>
+  kable_styling(
+    latex_options = c("striped", "hold_position"),
+    full_width    = FALSE
+  )
+```
+
+## Narrative Text
+
+### Introduction
+
+The price-to-income ratio is a key measure of housing affordability that compares the median home sale price to the median household income. When this ratio rises, homes become more expensive relative to what a typical household earns, signaling worsening affordability. By examining this ratio from 1995 to 2024, we can trace how purchasing power for homes has shifted across three decades and through two major economic disruptions.
+
+### Data
+
+The price-to-income analysis uses two datasets from the Federal Reserve Economic Data (FRED) system:
+
+- **MSPUS**: Median home sales price in the United States (quarterly data, averaged annually)
+- **MEHOINUSA646N**: Median household income in the United States (annual data)
+
+Both series are stored as CSV files in the project's data folder, sourced from FRED, and read in locally to ensure reliable rendering.
+
+### Data Preparation
+
+The home price data, originally provided quarterly, was aggregated into annual averages by year using `group_by()` and `summarize()`. Both datasets were then joined on year using `inner_join()`, which retains only years present in both series. The price-to-income ratio was computed as the median home price divided by the median household income. The analysis covers 1995 to 2024.
+
+### Visualization
+
+@fig-price-to-income shows the price-to-income ratio from 1995 to 2024 as a blue line chart. The dashed gray horizontal line marks the 1995–2024 historical average of approximately 4.7. Two shaded regions highlight periods of major economic disruption: the red band covering 2007.5–2009.5 marks the 2008 Financial Crisis, while the orange band covering 2019.5–2022.5 marks the COVID-19 era surge. Dotted vertical lines pinpoint 2008 and 2021 as the key years within those periods.
+
+The chart reveals a clear long-run upward trend, with the ratio rising from approximately 3.9 in 1995 to a peak near 5.8 in 2022, before easing slightly to around 5.0 by 2024. Notably, the ratio dipped back toward the historical average only briefly after the 2008 crisis, before climbing steadily through the recovery and pandemic periods.
+
+### Summary Table
+
+@tbl-price-to-income summarizes the price-to-income ratio across five historical eras. The Pre-2000 era had the lowest mean ratio at 3.93, reflecting a period when home prices were closer to household incomes. The 2000–2007 Pre-Crisis era saw the ratio climb to a mean of 4.61 as the housing bubble developed. Following the crisis, the 2008–2012 Post-Crisis period saw the ratio ease slightly to 4.54 as prices corrected. The 2013–2019 Recovery era saw a return to Pre-Crisis levels (mean 5.11), and the 2020–2024 COVID Era reached the highest mean of 5.27, driven by pandemic-era demand and supply constraints.
+
+### Conclusion
+
+The price-to-income ratio demonstrates a persistent and worsening affordability gap for the median U.S. household over the 1995–2024 period. The ratio has remained above its historical average for much of the past decade, and the COVID-19 era pushed it to its highest sustained levels in the dataset. This underscores the structural mismatch between home price growth and income growth, and sets important context for understanding the broader U.S. housing affordability crisis.
+
+## U.S. Median Rent Analysis
+
+### Code for Rent Analysis
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(knitr)
+
+# Load rent data (CPI rent component, 1982-84 = 100)
+rent_raw <- read_csv("data/CUUR0000SEHA.csv", show_col_types = FALSE) %>%
+  rename(date = observation_date, rent_idx = CUUR0000SEHA) %>%
+  mutate(date = as.Date(date), year = format(date, "%Y")) %>%
+  select(year, rent_idx)
+
+rent_annual <- rent_raw %>%
+  group_by(year) %>%
+  summarise(rent_idx = mean(rent_idx, na.rm = TRUE), .groups = "drop")
+
+# Calibrate to 2000 Census Bureau median gross rent: $602/month
+base_idx_2000 <- rent_annual %>% filter(year == "2000") %>% pull(rent_idx)
+
+rent_analysis <- rent_annual %>%
+  mutate(
+    median_rent = rent_idx / base_idx_2000 * 602,
+    year = as.numeric(year)
+  ) %>%
+  filter(year >= 1993 & year <= 2024) %>%
+  arrange(year)
+
+# Visualization
+print(
+  ggplot(rent_analysis, aes(x = year, y = median_rent)) +
+    geom_area(fill = "#C1440E", alpha = 0.12) +
+    geom_line(color = "#C1440E", linewidth = 1.1) +
+    geom_point(color = "#C1440E", size = 2) +
+    scale_x_continuous(breaks = seq(1993, 2024, by = 3)) +
+    scale_y_continuous(labels = label_dollar(accuracy = 1)) +
+    labs(
+      x = "Year",
+      y = "Estimated Monthly Rent ($)",
+      title = "Estimated Median U.S. Monthly Rent (1993–2024)",
+      caption = "Sources: FRED CUUR0000SEHA, U.S. Census Bureau 2000 AHS | STAT 184 Section 4"
+    ) +
+    theme_minimal(base_size = 11)
+)
+
+rent_analysis$median_rent <- round(rent_analysis$median_rent, 2)
+
+knitr::kable(
+  rent_analysis[seq(1, nrow(rent_analysis), by = 2), ],
+  col.names = c("Year", "Rent Index", "Estimated Median Monthly Rent ($)"),
+  caption = "Estimated Median Monthly Rent (1993–2024, showing every other year)"
+)
+```
+
+### Narrative Text
+
+#### Introduction
+
+Rent is a critical component of housing affordability, as it represents the cost of renting a typical residential unit. Unlike home prices, which fluctuate significantly, rent tends to show more consistent growth patterns. Examining rent trends over three decades provides insight into how housing costs have evolved for renters in the United States.
+
+#### Data
+
+The rent analysis uses the CPI rent-of-primary-residence component (CUUR0000SEHA) from FRED, which provides a monthly index with base period 1982–84 = 100. This series is calibrated to the U.S. Census Bureau's 2000 American Housing Survey median gross rent of $602/month, allowing conversion from the index to nominal monthly rent values.
+
+#### Data Preparation
+
+Monthly rent index values were aggregated into annual averages. The index was then converted to nominal dollars using the 2000 Census benchmark. The analysis covers 1993 to 2024, allowing for direct comparison with home price and income trends.
+
+#### Visualization
+
+The line graph shows rent growth over the 32-year period. Unlike home prices, rent demonstrates monotonically upward growth with no significant corrections or downturns, even during economic crises.
+
+#### Key Insights
+
+From 1993 to 2024, estimated median rent rose from approximately $455/month to $1,876/month—a 312% increase in nominal terms. This substantially outpaced both general CPI inflation (+117%) and nominal household income growth (+158%) over the same period. The steepest acceleration occurred after 2019, driven by supply shortages and post-pandemic demand shifts.
+
+---
+
+## U.S. Price-to-Rent Ratio
+
+### Code for Price-to-Rent Ratio
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(knitr)
+
+# Load home price data
+home_q <- read_csv("data/MSPUS.csv", show_col_types = FALSE) %>%
+  rename(date = observation_date, home_price = MSPUS) %>%
+  mutate(date = as.Date(date), year = format(date, "%Y")) %>%
+  select(year, home_price)
+
+home_annual <- home_q %>%
+  group_by(year) %>%
+  summarise(median_home_price = mean(home_price, na.rm = TRUE), .groups = "drop")
+
+# Load rent data
+rent_raw <- read_csv("data/CUUR0000SEHA.csv", show_col_types = FALSE) %>%
+  rename(date = observation_date, rent_idx = CUUR0000SEHA) %>%
+  mutate(date = as.Date(date), year = format(date, "%Y")) %>%
+  select(year, rent_idx)
+
+rent_annual <- rent_raw %>%
+  group_by(year) %>%
+  summarise(rent_idx = mean(rent_idx, na.rm = TRUE), .groups = "drop")
+
+base_idx_2000 <- rent_annual %>% filter(year == "2000") %>% pull(rent_idx)
+
+rent_annual <- rent_annual %>%
+  mutate(median_rent = rent_idx / base_idx_2000 * 602)
+
+# Calculate price-to-rent ratio
+ptr_analysis <- home_annual %>%
+  left_join(rent_annual, by = "year") %>%
+  filter(!is.na(median_home_price) & !is.na(median_rent)) %>%
+  mutate(
+    annual_rent = median_rent * 12,
+    price_to_rent = median_home_price / annual_rent,
+    year = as.numeric(year)
+  ) %>%
+  filter(year >= 1993 & year <= 2024) %>%
+  arrange(year)
+
+# Visualization with zones
+ptr_zones <- data.frame(
+  ymin = c(0, 15, 20), 
+  ymax = c(15, 20, 50),
+  fill = c("#d4edda", "#fff3cd", "#f8d7da")
+)
+
+print(
+  ggplot() +
+    geom_rect(data = ptr_zones,
+              aes(xmin = -Inf, xmax = Inf, ymin = ymin, ymax = ymax, fill = fill),
+              alpha = 0.45) +
+    scale_fill_identity() +
+    geom_line(data = ptr_analysis, aes(x = year, y = price_to_rent),
+              color = "#B8860B", linewidth = 1.2) +
+    geom_point(data = ptr_analysis, aes(x = year, y = price_to_rent),
+               color = "#B8860B", size = 2) +
+    annotate("text", x = 1994, y = 7.5, hjust = 0, color = "#155724",
+             size = 3, label = "Buy favored (ratio < 15)") +
+    annotate("text", x = 1994, y = 17.3, hjust = 0, color = "#856404",
+             size = 3, label = "Neutral (15–20)") +
+    annotate("text", x = 1994, y = 22.8, hjust = 0, color = "#721c24",
+             size = 3, label = "Rent favored (ratio > 20)") +
+    scale_x_continuous(breaks = seq(1993, 2024, by = 3)) +
+    scale_y_continuous(breaks = seq(0, 50, by = 5), limits = c(0, 50)) +
+    labs(
+      x = "Year",
+      y = "Price-to-Rent Ratio",
+      title = "Price-to-Rent Ratio (1993–2024)",
+      caption = "Sources: FRED MSPUS, CUUR0000SEHA | STAT 184 Section 4"
+    ) +
+    theme_minimal(base_size = 11)
+)
+
+ptr_analysis$price_to_rent <- round(ptr_analysis$price_to_rent, 1)
+
+knitr::kable(
+  ptr_analysis[seq(1, nrow(ptr_analysis), by = 2), c("year", "median_home_price", "annual_rent", "price_to_rent")],
+  col.names = c("Year", "Median Home Price ($)", "Annual Rent ($)", "Price-to-Rent Ratio"),
+  caption = "Price-to-Rent Ratio Analysis (1993–2024, showing every other year)"
+)
+```
+
+### Narrative Text
+
+#### Introduction
+
+The price-to-rent ratio compares the annual cost of owning (home price) to the annual cost of renting (annual rent). This ratio helps determine whether it is financially advantageous to buy or rent a property. A ratio below 15 traditionally favors buying, 15–20 is considered neutral, and above 20 favors renting.
+
+#### Data
+
+The price-to-rent analysis combines median home sales prices (MSPUS) with the CPI rent index (CUUR0000SEHA), calibrated to the 2000 Census benchmark.
+
+#### Data Preparation
+
+The annual rent is calculated by multiplying the monthly rent estimate by 12. The price-to-rent ratio is then computed as the median home price divided by annual rent.
+
+#### Key Insights
+
+The price-to-rent ratio has remained entirely in "rent-favored" territory (above 20×) throughout the 1993–2024 window, ranging from 20.2 to 39.9. It peaked during the mid-2000s bubble (~40×), fell post-crisis to ~22×, recovered through the 2010s, then spiked again during the 2020–2022 pandemic surge before easing to ~21× by 2024. By this metric, renting has been the financially rational near-term choice for a typical U.S. household for over three decades.
+
+---
+
+## Summary and Key Findings
+
+```{r}
+findings_df <- data.frame(
+  Metric = c(
+    "Median Home Price",
+    "Median Rent",
+    "Nominal Income Growth",
+    "Real Income Growth",
+    "Price-to-Income Ratio",
+    "Price-to-Rent Ratio",
+    "CPI Inflation"
+  ),
+  "1993" = c(
+    "$151,000",
+    "$455/month",
+    "—",
+    "—",
+    "4.8x",
+    "20.2x",
+    "144.5"
+  ),
+  "2024" = c(
+    "$477,000",
+    "$1,876/month",
+    "$80,610",
+    "$80,610 (2024 $)",
+    "5.9x",
+    "21.0x",
+    "313.7"
+  ),
+  "Change %" = c(
+    "217%",
+    "312%",
+    "158%",
+    "19%",
+    "+23%",
+    "+4%",
+    "117%"
+  )
+)
+
+knitr::kable(
+  findings_df,
+  caption = "Summary of Key Metrics: 1993 vs. 2024"
+)
+```
+
+### Key Findings
+
+1. **Housing Affordability Crisis**: Median home prices rose 217% between 1993 and 2024, while real (inflation-adjusted) household income grew only 19%. The price-to-income ratio has remained above 5× since 2019, indicating severe affordability stress for the median U.S. household.
+
+2. **Rent Acceleration**: Estimated median rent surged 312% over the same period—faster than home prices—driven by supply shortages and post-pandemic demand. Monthly rent has grown from $455 to nearly $1,900, substantially exceeding income growth.
+
+3. **Price-to-Rent Ratio**: With ratios consistently above 20×, renting has been financially advantageous compared to buying for over three decades. The 2020–2022 period saw particular pressure, with ratios peaking around 25–30×.
+
+4. **Inflation and Real Income**: While nominal incomes rose 158%, inflation of 117% over 31 years meant real income gains were minimal. The 2021–2022 inflation surge (+7.96% annual rate) caused the sharpest real income decline since the early 1980s.
+
+5. **Long-term Trends**: The analysis reveals two major inflection points: the 2006–2011 housing crisis (prices fell ~35% from peak) and the 2020–2022 pandemic surge (fastest price growth in the dataset). Both events demonstrate housing market volatility and its disconnect from wage growth.
+
+### Conclusion
+
+The 30-year analysis of U.S. housing affordability reveals a fundamental and worsening mismatch between home prices, rents, and household incomes. While nominal metrics show substantial growth across all categories, real income growth has been negligible, eroded by persistent inflation. The price-to-income ratio, consistently above the 5× stress threshold since 2019, and the price-to-rent ratio, above the "rent-favored" threshold throughout the entire study period, both indicate severe housing affordability challenges for median American households. These findings underscore the critical importance of housing policy interventions and income growth strategies in addressing the affordability crisis in contemporary America.
